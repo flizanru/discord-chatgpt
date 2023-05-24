@@ -13,10 +13,10 @@ openai.api_key = config['token_openai']
 
 # Установка соединения с базой данных
 conn = mysql.connector.connect(
-    host='host',
-    user='db',
-    password='russia',
-    database='db'
+    host='92.53.90.39',
+    user='db678',
+    password='GQg5qMFBIptv7Rz',
+    database='db678'
 )
 cursor = conn.cursor()
 
@@ -134,11 +134,12 @@ async def on_message(message):
             SELECT channel_id FROM verify_channels
             WHERE guild_id = %s
         ''', (guild_id,))
-        result = cursor.fetchone()
+        results = cursor.fetchall()  # Прочитать результаты
 
-        # Добавлен вызов cursor.fetchone() для чтения результата
-        if result is not None and message.channel.id == int(result[0]):
-            if message.author.guild_permissions.administrator:
+        if len(results) > 0:  # Изменить условие на len(results) > 0
+            result = results[0]  # Получить первый результат
+
+            if message.channel.id == int(result[0]):
                 content = message.content.removeprefix(config['prefix'] + 'gpt').strip()
 
                 response = openai.Completion.create(
