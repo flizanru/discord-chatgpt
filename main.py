@@ -43,6 +43,7 @@ conn.commit()
 @bot.event
 async def on_ready():
     print('Bot online')
+    print('Version 2.0.0')
 
 @bot.slash_command(name='addverifychannel', description='Добавляет канал в список разрешенных', hidden=True)
 @commands.has_permissions(administrator=True)
@@ -120,7 +121,7 @@ async def help_command(ctx):
     embed.add_field(name="/gpt", value='"ваш запрос" - отправить запрос боту', inline=False)
     embed.add_field(name="/addverifychannel", value='"канал" - выбрать канал для включения бота', inline=False)
     embed.add_field(name="/removeverifychannel", value='"канал" - удалить канал, где включен бот', inline=False)
-    embed.add_field(name="/listverify **[NEW]**", value='список всех разрешённых для отправки сообщений бота каналов', inline=False)
+    embed.add_field(name="/listverify", value='список всех разрешённых для отправки сообщений бота каналов', inline=False)
     await ctx.respond(embed=embed, ephemeral=True)
 
 @bot.event
@@ -134,32 +135,36 @@ async def on_message(message):
             SELECT channel_id FROM verify_channels
             WHERE guild_id = %s
         ''', (guild_id,))
-        results = cursor.fetchall()  # Прочитать результаты
+        results = cursor.fetchall()
 
-        if len(results) > 0:  # Изменить условие на len(results) > 0
-            result = results[0]  # Получить первый результат
+        if len(results) > 0:
+            result = results[0]
 
             if message.channel.id == int(result[0]):
                 content = message.content.removeprefix(config['prefix'] + 'gpt').strip()
 
+                reply = f"Я думаю..."
+                typing_embed = discord.Embed(description=reply)
+                typing_message = await message.channel.send(embed=typing_embed)
+
                 response = openai.Completion.create(
                     engine="text-davinci-003",
-                    prompt=f"User: {content}\nAI:",
+                    prompt=content,
                     temperature=0.7,
-                    max_tokens=600,
+                    max_tokens=500,
                     top_p=1.0,
                     frequency_penalty=0.0,
                     presence_penalty=0.6,
                     stop=None
                 )
 
-                reply = f"{message.author.mention}, вот мой ответ:\n\n{response.choices[0]['text']}"
+                reply = response.choices[0]['text']
                 embed = discord.Embed(description=reply)
+                await typing_message.delete()
                 await message.channel.send(embed=embed)
 
-                # Сохранение запроса и ответа в базу данных
-                query = content.replace('"', '""')  # Защита от SQL-инъекций
-                response_text = response.choices[0]['text'].replace('"', '""')  # Защита от SQL-инъекций
+                query = content.replace('"', '""')
+                response_text = reply.replace('"', '""')
                 cursor.execute('''
                     INSERT INTO conversations (user_id, guild_id, channel_id, query, response)
                     VALUES (%s, %s, %s, %s, %s)
