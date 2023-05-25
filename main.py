@@ -13,10 +13,10 @@ openai.api_key = config['token_openai']
 
 # Установка соединения с базой данных
 conn = mysql.connector.connect(
-    host='92.53.90.39',
-    user='db678',
-    password='GQg5qMFBIptv7Rz',
-    database='db678'
+    host='localhost',
+    user='db',
+    password='z',
+    database='db'
 )
 cursor = conn.cursor()
 
