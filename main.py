@@ -43,7 +43,7 @@ conn.commit()
 @bot.event
 async def on_ready():
     print('Bot online')
-    print('Version 2.0.0')
+    print('Version 2.0.1')
 
 @bot.slash_command(name='addverifychannel', description='Добавляет канал в список разрешенных', hidden=True)
 @commands.has_permissions(administrator=True)
@@ -122,6 +122,7 @@ async def help_command(ctx):
     embed.add_field(name="/addverifychannel", value='"канал" - выбрать канал для включения бота', inline=False)
     embed.add_field(name="/removeverifychannel", value='"канал" - удалить канал, где включен бот', inline=False)
     embed.add_field(name="/listverify", value='список всех разрешённых для отправки сообщений бота каналов', inline=False)
+    embed.add_field(name="/toplist", value='топ-лист активных учасников использовавших бота', inline=False)
     await ctx.respond(embed=embed, ephemeral=True)
 
 @bot.event
@@ -172,5 +173,30 @@ async def on_message(message):
                 conn.commit()
 
     await bot.process_commands(message)
+
+@bot.slash_command(name="toplist", description="Показывает топ пользователей, использующих бота", hidden=True)
+async def top_list(ctx):
+    cursor.execute('''
+        SELECT user_id, COUNT(*) AS count FROM conversations
+        GROUP BY user_id
+        ORDER BY count DESC
+        LIMIT 10
+    ''')
+    results = cursor.fetchall()
+
+    if len(results) == 0:
+        await ctx.respond("Еще не было использовано бота.", ephemeral=True)
+        return
+
+    leaderboard = []
+    for index, result in enumerate(results):
+        user_id = result[0]
+        count = result[1]
+        user = await bot.fetch_user(int(user_id))
+        leaderboard.append(f"{index + 1}. {user.name}#{user.discriminator} - {count}")
+
+    embed = discord.Embed(title="Топ пользователей", color=0x3CB371)
+    embed.add_field(name="Пользователи", value="\n".join(leaderboard), inline=False)
+    await ctx.respond(embed=embed, ephemeral=True)
 
 bot.run(config['token'])
