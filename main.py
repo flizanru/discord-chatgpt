@@ -13,10 +13,10 @@ openai.api_key = config['token_openai']
 
 # Установка соединения с базой данных
 conn = mysql.connector.connect(
-    host='localhost',
-    user='db',
-    password='z',
-    database='db'
+    host='92.53.90.39',
+    user='db678',
+    password='GQg5qMFBIptv7Rz',
+    database='db678'
 )
 cursor = conn.cursor()
 
@@ -43,7 +43,26 @@ conn.commit()
 @bot.event
 async def on_ready():
     print('Bot online')
-    print('Version 2.0.1')
+    print('Version 2.0.2:29.05.2023')
+    
+    bot.blocked = False
+    bot.allowed_user_id = 826081958315950100
+
+@bot.slash_command(name="blockbot", description="Блокирует бота на технических работах", hidden=True)
+async def block_bot(ctx):
+    if ctx.author.id == bot.allowed_user_id:
+        bot.blocked = True
+        await ctx.respond("Бот находится на технических работах. Все команды заблокированы.")
+    else:
+        await ctx.respond("У вас нет разрешения на использование этой команды.", ephemeral=True)
+
+@bot.slash_command(name="unblockbot", description="Разблокирует бота после технических работ", hidden=True)
+async def unblock_bot(ctx):
+    if ctx.author.id == bot.allowed_user_id:
+        bot.blocked = False
+        await ctx.respond("Бот завершил технические работы. Команды снова доступны.")
+    else:
+        await ctx.respond("У вас нет разрешения на использование этой команды.", ephemeral=True)
 
 @bot.slash_command(name='addverifychannel', description='Добавляет канал в список разрешенных', hidden=True)
 @commands.has_permissions(administrator=True)
@@ -144,35 +163,42 @@ async def on_message(message):
             if message.channel.id == int(result[0]):
                 content = message.content.removeprefix(config['prefix'] + 'gpt').strip()
 
-                reply = f"Я думаю..."
-                typing_embed = discord.Embed(description=reply)
-                typing_message = await message.channel.send(embed=typing_embed)
+                if bot.blocked:
+                    if message.author.id == bot.allowed_user_id:
+                        await message.author.send("Бот находится на технических работах.")
+                    else:
+                        await message.channel.send("Бот находится на технических работах.")
+                else:
+                    reply = f"Я думаю..."
+                    typing_embed = discord.Embed(description=reply)
+                    typing_message = await message.channel.send(embed=typing_embed)
 
-                response = openai.Completion.create(
-                    engine="text-davinci-003",
-                    prompt=content,
-                    temperature=0.7,
-                    max_tokens=500,
-                    top_p=1.0,
-                    frequency_penalty=0.0,
-                    presence_penalty=0.6,
-                    stop=None
-                )
+                    response = openai.Completion.create(
+                        engine="text-davinci-003",
+                        prompt=content,
+                        temperature=0.7,
+                        max_tokens=500,
+                        top_p=1.0,
+                        frequency_penalty=0.0,
+                        presence_penalty=0.6,
+                        stop=None
+                    )
 
-                reply = response.choices[0]['text']
-                embed = discord.Embed(description=reply)
-                await typing_message.delete()
-                await message.channel.send(embed=embed)
+                    reply = response.choices[0]['text']
+                    embed = discord.Embed(description=reply)
+                    await typing_message.delete()
+                    await message.channel.send(embed=embed)
 
-                query = content.replace('"', '""')
-                response_text = reply.replace('"', '""')
-                cursor.execute('''
-                    INSERT INTO conversations (user_id, guild_id, channel_id, query, response)
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', (str(message.author.id), guild_id, str(message.channel.id), query, response_text))
-                conn.commit()
+                    query = content.replace('"', '""')
+                    response_text = reply.replace('"', '""')
+                    cursor.execute('''
+                        INSERT INTO conversations (user_id, guild_id, channel_id, query, response)
+                        VALUES (%s, %s, %s, %s, %s)
+                    ''', (str(message.author.id), guild_id, str(message.channel.id), query, response_text))
+                    conn.commit()
 
     await bot.process_commands(message)
+
 
 @bot.slash_command(name="toplist", description="Показывает топ пользователей, использующих бота", hidden=True)
 async def top_list(ctx):
